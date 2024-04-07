@@ -116,3 +116,37 @@ def angle_conversion(theta):
     else:
         return theta
     
+def a_star_function(pos,ul,ur):
+    old_x = round(pos[0])
+    old_y = round(pos[1])
+    theta = round(pos[2])
+    dt=0.1
+    theta_n = (np.pi * (theta/180))
+    Cost = 0
+    Xn = old_x
+    Yn = old_y
+    
+    Xn += 0.5*Wheel_Radius*(ul+ur)*np.cos(theta_n)*dt
+    Yn += 0.5*Wheel_Radius*(ul+ur)*np.sin(theta_n)*dt
+        # print(Xn)
+        # print(Yn)
+    theta_n += (Wheel_Radius/Wheel_Length)*(ur-ul)
+    theta_n = (180*(theta_n))/np.pi
+    theta_n = angle_conversion(theta_n)
+    if (0<=round(Xn)<6000) and (0<=round(Yn)<2000):
+        if (CheckedList[int(round(Yn))][int(round(Xn))] != 1) and ((round(Xn),round(Yn)) not in Obs_Coords):
+            # plt.scatter(Xn,Yn,color="blue")
+            Cost = Cost+math.sqrt(math.pow((0.5*Wheel_Radius * (ul + ur) * np.cos(theta_n) * dt),2)+math.pow((0.5*Wheel_Radius * (ul + ur) * np.sin(theta_n) * dt),2))
+            CloseList.append((round(Xn),round(Yn),round(theta_n))) 
+            Eucledian_dist = np.sqrt(((goal_pt[0] - Xn)**2)+((goal_pt[1] - Yn)**2))
+            TotalCost = Cost + Eucledian_dist
+            for m in range(UncheckedList.qsize()):
+                if UncheckedList.queue[m][3] == (round(Xn),round(Yn),round(theta_n)):
+                    if UncheckedList.queue[m][0] > TotalCost:
+                        UncheckedList.queue[m] = (TotalCost,Eucledian_dist,Cost,(round(Xn),round(Yn),round(theta_n)))
+                        Pth[(Xn,Yn,theta_n)] = (old_x,old_y,theta)
+                        return
+                    else:
+                        return
+            UncheckedList.put((TotalCost,Eucledian_dist,Cost,(round(Xn),round(Yn),round(theta_n))))
+            Pth[(round(Xn),round(Yn),round(theta_n))] = (old_x,old_y,theta)
