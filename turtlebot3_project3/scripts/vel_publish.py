@@ -12,9 +12,9 @@ from heapq import heappush, heappop
 from matplotlib.patches import Rectangle
 import matplotlib.pyplot as plt
 
-class vel_publisher(Node):
+class Astar(Node):
     def __init__(self):
-        super().__init__('vel_publisher')
+        super().__init__('Astar')
         self.vel_pub = self.create_publisher(Twist, 'cmd_vel', 100)
 
         self.msg = Twist()
@@ -339,12 +339,12 @@ class vel_publisher(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    vel_publisher = vel_publisher()
+    astar = Astar()
 
-    vel_publisher.run()
+    astar.run()
 
-    rclpy.spin(vel_publisher)
-    vel_publisher.destroy_node()
+    rclpy.spin(astar)
+    Astar.destroy_node()
 
     rclpy.shutdown()
 
