@@ -6,19 +6,18 @@ import math
 import time
 
 boundry = []    
-Pth = {}       
-UncheckedList = PriorityQueue()     # to store unvisited nodes
-backtrack_ = []            
+Pth = {}      
+UncheckedList = PriorityQueue()     #Used to store unvisited nodes
+b_track = []            
 CloseList = []
-CheckedList = np.zeros((250,600),dtype='float64')     # to store the visited nodes
-r_radius = 22
-w_radius = 3.3
-w_length = 28.7
+CheckedList = np.zeros((250,600),dtype='float64')     # Used to store the visited nodes
+Robot_Radius = 11   
+Wheel_Radius = 3.3
+Wheel_Length = 16
 
 startTime = time.time()
 
-#Map
-def canvas_space(space):
+def obstacle_space(space):
     h,w,_ = space.shape
     for l in range(h):
         for m in range(w):
@@ -26,7 +25,7 @@ def canvas_space(space):
             if ((200-l) - 5 < 0) or ((m) - 5 < 0) or ((200-l) -195 > 0) or ((m) - 595 > 0): #boundary
                 space[l][m] = [102,255,178]
                 
-            if (m > ((150-Obstacle_Clearance)-r_radius)) and (m < (175+Obstacle_Clearance+r_radius)) and (200-l < 200) and (200-l > ((100-Obstacle_Clearance)-r_radius)):   #rectangle1 with Obstacle clearance and Robot Radius
+            if (m > ((150-Obstacle_Clearance)-Robot_Radius)) and (m < (175+Obstacle_Clearance+Robot_Radius)) and (200-l < 200) and (200-l > ((100-Obstacle_Clearance)-Robot_Radius)):   #rectangle1 with Obstacle clearance and Robot Radius
                 space[l][m] = [192,192,192]
 
             if (m > (150-Obstacle_Clearance)) and (m < (175+Obstacle_Clearance)) and (200-l < 200) and (200-l > (100-Obstacle_Clearance)):   #rectangle1 with Obstacle Clearance
@@ -35,7 +34,7 @@ def canvas_space(space):
             if (m > 150) and (m < 175) and (200-l < 200) and (200-l > 100):   #rectangle1
                 space[l][m] = [255,204,153]
                 
-            if (m > ((250-Obstacle_Clearance)-r_radius)) and (m < (275+Obstacle_Clearance+r_radius)) and (200-l >0) and (200-l < (100+Obstacle_Clearance+r_radius)):  #rectangle2 with Obstacle clearance and Robot Radius
+            if (m > ((250-Obstacle_Clearance)-Robot_Radius)) and (m < (275+Obstacle_Clearance+Robot_Radius)) and (200-l >0) and (200-l < (100+Obstacle_Clearance+Robot_Radius)):  #rectangle2 with Obstacle clearance and Robot Radius
                 space[l][m] = [192,192,192]
 
             if (m > (250-Obstacle_Clearance)) and (m < (275+Obstacle_Clearance)) and (200-l >0) and (200-l < (100+Obstacle_Clearance)):  #rectangle2 with Obstacle clearance
@@ -44,7 +43,7 @@ def canvas_space(space):
             if (m > 250) and (m < 275) and (200-l >0) and (200-l < 100):  #rectangle2
                 space[l][m] = [255,204,153]
             
-            if (math.pow((m-420),2) + math.pow(((200-l)-120),2) - math.pow((60+Obstacle_Clearance+r_radius),2)) < 0:    #Circle with Obstacle clearance and Robot Radius
+            if (math.pow((m-420),2) + math.pow(((200-l)-120),2) - math.pow((60+Obstacle_Clearance+Robot_Radius),2)) < 0:    #Circle with Obstacle clearance and Robot Radius
                 space[l][m] = [192,192,192]
 
             if (math.pow((m-420),2) + math.pow(((200-l)-120),2) - math.pow((60+Obstacle_Clearance),2)) < 0: #Circle with Obstacle Clearance
@@ -53,9 +52,6 @@ def canvas_space(space):
             if (math.pow((m-420),2) + math.pow(((200-l)-120),2) - math.pow(60,2)) < 0: #Circle
                 space[l][m] = [255,204,153]                
     return 
-
-
-# Obstacle coordinates -> list
 def boundry_creation(space):
     h,w,_ = space.shape
     for l in range(h):
@@ -65,7 +61,9 @@ def boundry_creation(space):
     return boundry
 
 
-# Start node - INPUT
+
+
+#Getting User Inputs For the Start node from the user
 def User_Inputs_Start(Obs_Coords):
     while True:
         x = int(input("Enter the Initial x node: "))
@@ -78,13 +76,13 @@ def User_Inputs_Start(Obs_Coords):
                 return start_node
             else:
                 print("The Entered Start Node is in obstacle space")
-# Goal node - INPUT
+#Getting User Input for the Goal Node from the user
 def User_Inputs_Goal(Obs_Coords):
     while True:
         x = int(input("Enter the Goal x node: "))
         y = int(input("Enter the Goal y node: "))
         
-     
+        #goal_node = (x,y)
         if((x>=0) and (x<=600)) and (y>=0) and (y<=200):
             if (x,y) not in Obs_Coords :
                 goal_node=(x,y)
@@ -92,12 +90,12 @@ def User_Inputs_Goal(Obs_Coords):
             else:
                 print("The Entered Goal Node is in obstacle space")
     return goal_node
-# RPM - INPUT
+
 def User_Input_rpm():
     rpm1 = int(input("Enter the first RPM: "))
     rpm2 = int(input("Enter the second RPM: "))
+    
     return (rpm1,rpm2)
-
 def angle_conversion(theta):
     if theta > 360:
         theta = theta % 360
@@ -118,15 +116,16 @@ def a_star_function(pos,ul,ur):
     Xn = old_x
     Yn = old_y
     
-    Xn += 0.5*w_radius*(ul+ur)*np.cos(theta_n)*dt
-    Yn += 0.5*w_radius*(ul+ur)*np.sin(theta_n)*dt
-        
-    theta_n += (w_radius/w_length)*(ur-ul)
+    Xn += 0.5*Wheel_Radius*(ul+ur)*np.cos(theta_n)*dt
+    Yn += 0.5*Wheel_Radius*(ul+ur)*np.sin(theta_n)*dt
+
+    theta_n += (Wheel_Radius/Wheel_Length)*(ur-ul)
     theta_n = (180*(theta_n))/np.pi
     theta_n = angle_conversion(theta_n)
     if (0<=round(Xn)<600) and (0<=round(Yn)<200):
         if (CheckedList[int(round(Yn))][int(round(Xn))] != 1) and ((round(Xn),round(Yn)) not in Obs_Coords):
-            Cost = Cost+math.sqrt(math.pow((0.5*w_radius * (ul + ur) * np.cos(theta_n) * dt),2)+math.pow((0.5*w_radius * (ul + ur) * np.sin(theta_n) * dt),2))
+
+            Cost = Cost+math.sqrt(math.pow((0.5*Wheel_Radius * (ul + ur) * np.cos(theta_n) * dt),2)+math.pow((0.5*Wheel_Radius * (ul + ur) * np.sin(theta_n) * dt),2))
             CloseList.append((round(Xn),round(Yn),round(theta_n))) 
             Eucledian_dist = np.sqrt(((goal_pt[0] - Xn)**2)+((goal_pt[1] - Yn)**2))
             TotalCost = Cost + Eucledian_dist
@@ -180,15 +179,15 @@ def rpm2_n_rpm1(a):
     pos = a[3] 
     a_star_function(pos,vel_2,vel_1)
 
-# rpm to velocity
+#Converting the rpm to velocity
 def rpm_to_velocity(rpm1,rpm2):
-    v1 = (2*np.pi*w_radius*rpm1)/60
-    v2 = (2*np.pi*w_radius*rpm2)/60
+    v1 = (2*np.pi*Wheel_Radius*rpm1)/60
+    v2 = (2*np.pi*Wheel_Radius*rpm2)/60
     return v1,v2
 
 
-# Backtracking
-def backtrack_(Pth,final_val,initial_pt):
+#Defining the bactracking algorithm 
+def B_tracking(Pth,final_val,initial_pt):
     b_track = []
     z = list(Pth)[-1]
     K = Pth.get(z)
@@ -202,18 +201,18 @@ def backtrack_(Pth,final_val,initial_pt):
     return (b_track)
 
 def PromptPredefined():
-    print("Run predefined inputs")
-    ans = input(" y/n? ")
+    print("Want to use predefined start, goal and rpms?")
+    ans = input("y/n? ")
     if ans == "y":
         return True
     else:
         return False
          
-space = np.ones((201,601,3),dtype='uint8') 
+space = np.ones((201,601,3),dtype='uint8')  
 
 if PromptPredefined() == False:
     Obstacle_Clearance = int(input("Enter the Obstacle Clearance of the Robot: "))
-    canvas_space(space)          
+    obstacle_space(space)          
     Obs_Coords= boundry_creation(space)
 
     initial_pt = User_Inputs_Start(Obs_Coords)  
@@ -227,15 +226,16 @@ if PromptPredefined() == False:
     start = (InitialTotalCost,InitialEucledian_dist,0,initial_pt)
 else: 
     Obstacle_Clearance = 1
-    canvas_space(space)
+    obstacle_space(space)
     Obs_Coords= boundry_creation(space)
 
-    initial_pt = (10, 10, 0)
-    goal_pt = (30, 30)
+    initial_pt = (100, 100, 0)
+    goal_pt = (575, 100)
     rpm1 = 40
     rpm2 = 35
 
     vel_1, vel_2 = rpm_to_velocity(rpm1, rpm2)
+
     start = (0, 0, 0, initial_pt)
     InitialEucledian_dist = np.sqrt(((goal_pt[0] - start[3][0])**2)+((goal_pt[1] - start[3][1])**2))
     InitialTotalCost = InitialEucledian_dist
@@ -258,21 +258,28 @@ while UncheckedList.qsize() != 0:
             rpm2_n_rpm2(a)
             rpm1_n_rpm2(a)
             rpm2_n_rpm1(a)
+   
         else:
+            
             print("Goal reached")
             reached=1
             break
 
 
+
 if reached ==1:
-    b = backtrack_(Pth,a, initial_pt)
+
+    b = B_tracking(Pth,a, initial_pt)
+    
     print(b)
+    
     
     for i in CloseList:
         xi,yi,teta = i[0],i[1],i[2]
         j = Pth.get((xi,yi,teta))
         cv.line(space,(int(i[0]), 200-int(i[1])),(int(j[0]),200-int(j[1])),(0,0,255),1)
-    
+        
+        #cv.imshow("Space",space)
         ScaledUp = cv.resize(space,(1202,402))
         cv.imshow("Map",ScaledUp)
         if cv.waitKey(20) & 0xFF == ord('q'):
@@ -283,13 +290,13 @@ if reached ==1:
         plt.scatter(int(j[0]), int(j[1]),color="blue")
         cv.circle(space,(int(j[0]),200-int(j[1])), 1, (0,255,0), -1)
         SPACEscaledUp = cv.resize(space,(1202,402))
-        cv.imshow("Space ", SPACEscaledUp )
+        cv.imshow("Space", SPACEscaledUp )
         if cv.waitKey(50) & 0xFF == ord('q'):
             break
 
 
 else:
-    print("Error")
+    print("The Goal cannot be reached")
 
 cv.destroyAllWindows()
 endTime = time.time()
