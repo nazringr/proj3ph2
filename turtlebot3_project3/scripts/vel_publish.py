@@ -59,11 +59,6 @@ class vel_publisher(Node):
         vel_tot = math.sqrt(vel_x** 2 + vel_y** 2)
         thet_f = (180*del_theta/ 3.14)   
         return vel_tot, angular_vel, thet_f
-
-    def distance(self, start_coordinate, goal_coordinate):
-        sx,sy = start_coordinate[0],start_coordinate[1]
-        gx,gy = goal_coordinate[0],goal_coordinate[1]
-        return math.sqrt((gx-sx)**2 + (gy-sy)**2)#instead of using scipy.spatial importing distance
     
     def norm_node(self, Node):
         x,y,t = Node[0],Node[1],Node[2]
@@ -76,6 +71,13 @@ class vel_publisher(Node):
         t=t-(360*n)
         t=(t/self.thrang)
         return [x,y,int(t)]
+    
+    def distance(self, start_coordinate, goal_coordinate):
+        sx,sy = start_coordinate[0],start_coordinate[1]
+        gx,gy = goal_coordinate[0],goal_coordinate[1]
+        return math.sqrt((gx-sx)**2 + (gy-sy)**2)#instead of using scipy.spatial importing distance
+    
+    
 
     def string_from_list(self, s):  
             str1 = ""  
