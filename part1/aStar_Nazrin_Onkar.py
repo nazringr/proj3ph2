@@ -265,7 +265,6 @@ while UncheckedList.qsize() != 0:
 
 
 if reached ==1:
-
     b = backtrack_(Pth,a, initial_pt)
     print(b)
     
