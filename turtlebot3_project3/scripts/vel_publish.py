@@ -27,13 +27,13 @@ class Astar(Node):
 
         self.vel_pub.publish(self.msg)
 
-        self.th_dist = 0.01
-        self.ndist = int(1 / self.th_dist)
-        self.sizeofx = 10 * self.ndist
-        self.thrang = 10
-        self.nare = int(360 / self.thrang)
+        self.thresholdDistance = 0.01
+        self.nd = int(1 / self.thresholdDistance)
+        self.sizex = 10 * self.nd
+        self.thresholdAngle = 10
+        self.na = int(360 / self.thresholdAngle)
 
-        self.total = 0.18
+        self.tot = 0.18
 
         self.actions = [
             [2, 0], [0, 2], [2, 2],
@@ -45,38 +45,37 @@ class Astar(Node):
         self.goal = None
         self.parent = {}
 
-    def cal_vel(self, xi, yi, the_i, vel_l, vel_r):
-        radius = 0.033 #in metres
-        length = 0.287 #in metres
-        delt = 10
-        vel_l = vel_l*2*math.pi/60
-        vel_r = vel_r*2*math.pi/60
-        thetan = 3.14 * the_i / 180
-        angular_vel = (radius / length) * (vel_r - vel_l) 
-        del_theta = angular_vel + thetan
-        vel_x = (radius / 2) * (vel_l + vel_r) * math.cos(del_theta) 
-        vel_y = (radius / 2) * (vel_l + vel_r) * math.sin(del_theta) 
-        vel_tot = math.sqrt(vel_x** 2 + vel_y** 2)
-        thet_f = (180*del_theta/ 3.14)   
-        return vel_tot, angular_vel, thet_f
-    
+    def inputs_ros(self, xi, yi, Thetai, UL, UR):
+        r = 0.033 
+        L = 0.287 
+        dt = 10
+        UL = UL*2*math.pi/60
+        UR = UR*2*math.pi/60
+        thetan = 3.14 * Thetai / 180
+        theta_dot = (r / L) * (UR - UL) 
+        change_theta = theta_dot + thetan
+        x_dot = (r / 2) * (UL + UR) * math.cos(change_theta) 
+        y_dot = (r / 2) * (UL + UR) * math.sin(change_theta) 
+        vel_mag = math.sqrt(x_dot** 2 + y_dot** 2)
+        F_theta = (180*change_theta/ 3.14)   
+        return vel_mag, theta_dot, F_theta
+
     def norm_node(self, Node):
         x,y,t = Node[0],Node[1],Node[2]
-        x = round(x/self.th_dist)* self.th_dist
-        y = round(y/self.th_dist)* self.th_dist
-        t = round(t/self.thrang) * self.thrang
+        x = round(x/self.thresholdDistance)* self.thresholdDistance
+        y = round(y/self.thresholdDistance)* self.thresholdDistance
+        t = round(t/self.thresholdAngle) * self.thresholdAngle
         x=round(x,4)
         y=round(y,4)
         n=t//360
         t=t-(360*n)
-        t=(t/self.thrang)
+        t=(t/self.thresholdAngle)
         return [x,y,int(t)]
-    
-    def distance(self, start_coordinate, goal_coordinate):
+
+    def euclid_dist(self, start_coordinate, goal_coordinate):
         sx,sy = start_coordinate[0],start_coordinate[1]
         gx,gy = goal_coordinate[0],goal_coordinate[1]
-        return math.sqrt((gx-sx)**2 + (gy-sy)**2)#instead of using scipy.spatial importing distance
-    
+        return math.sqrt((gx-sx)**2 + (gy-sy)**2)
 
     def string_from_list(self, s):  
             str1 = ""  
@@ -85,204 +84,209 @@ class Astar(Node):
             return str1  
 
     def check_bound(self, i, j):
-        if (i<self.total or j>=6-self.total or j<self.total or i>=6-self.total):
+        if (i<self.tot or j>=6-self.tot or j<self.tot or i>=6-self.tot):
             return 0
         else:
             return 1
 
 
-    def check_obs(self, x, y):
-        circle_obs = ((np.square(x-4.2))+ (np.square(y-1.2)) <=np.square(0.6+self.total))
-        square_obs1=(x>=1.5-self.total) and (x<=1.75+self.total) and (y>=1-self.total) and (y <= 2)
-        square_obs2=(x>=2.5-self.total) and (x<=2.75+self.total) and (y>=0) and (y <= 1+self.total)
+    def map_of_obstacles(self, x, y):
+        circle1 = ((np.square(x-4.2))+ (np.square(y-1.2)) <=np.square(0.6+self.tot))
+        square1=(x>=1.5-self.tot) and (x<=1.75+self.tot) and (y>=1-self.tot) and (y <= 2)
+        square2=(x>=2.5-self.tot) and (x<=2.75+self.tot) and (y>=0) and (y <= 1+self.tot)
         
-        boundary=(x<=self.total) or (x>=6-self.total) or (y <= self.total) or (y>=2-self.total)
-        if circle_obs or square_obs1 or square_obs2 or boundary:
-            object_value =0
+        boundary=(x<=self.tot) or (x>=6-self.tot) or (y <= self.tot) or (y>=2-self.tot)
+        if circle1 or square1 or square2 or boundary:
+            obj_val =0
         else:
-            object_value = 1
+            obj_val = 1
     
-        return object_value
+        return obj_val
 
-    def draw_motion(self, xi, yi, the_i, vel_l, vel_r):
+    def curve_plot(self, xi, yi, Thetai, UL, UR):
         t = 0
-        radius = 0.033
-        length = 0.287
-        delt = 1
+        r = 0.033
+        L = 0.287
+        dt = 1
         Xn=xi
         Yn=yi
-        Thetan = math.radians(the_i)
+        Thetan = math.radians(Thetai)
         while t<10:
-            t = t + delt
+            t = t + dt
             Xs = Xn
             Ys = Yn
-            Xn += (0.5*radius) * (vel_l + vel_r) * math.cos(Thetan) * delt
-            Yn += (0.5*radius) * (vel_l + vel_r) * math.sin(Thetan) * delt
-            Thetan += (radius / length) * (vel_r - vel_l) * delt
+            Xn += (0.5*r) * (UL + UR) * math.cos(Thetan) * dt
+            Yn += (0.5*r) * (UL + UR) * math.sin(Thetan) * dt
+            Thetan += (r / L) * (UR - UL) * dt
             plt.plot([Xs, Xn], [Ys, Yn], color="red")
         Thetan = math.degrees(Thetan)
         return [Xn, Yn, Thetan]
 
 
-    def exec_robot_motion(self, xi, yi, the_i, vel_l, vel_r, s, n):
+    def robot_move(self, xi, yi, Thetai, UL, UR, s, n):
         t = 0
-        radius = 0.033
-        length = 0.287
-        delt = 1
+        r = 0.033
+        L = 0.287
+        dt = 1
         Xn=xi
         Yn=yi
         length=0
-        Thetan = math.radians(the_i*self.thrang)
+        Thetan = math.radians(Thetai*self.thresholdAngle)
         while t<10:
-            t = t + delt
+            t = t + dt
             Xs = Xn
             Ys = Yn
-            Xn += (0.5*radius) * (vel_l + vel_r) * math.cos(Thetan) * delt
-            Yn += (0.5*radius) * (vel_l + vel_r) * math.sin(Thetan) * delt
-            length+=self.distance([Xs,Ys],[Xn,Yn])
+            Xn += (0.5*r) * (UL + UR) * math.cos(Thetan) * dt
+            Yn += (0.5*r) * (UL + UR) * math.sin(Thetan) * dt
+            length+=self.euclid_dist([Xs,Ys],[Xn,Yn])
             status=self.check_bound(Xn,Yn)
-            flag=self.check_obs(Xn,Yn)
+            flag=self.map_of_obstacles(Xn,Yn)
             if (status!=1) or (flag != 1):
                 return None
-            Thetan += (radius / length) * (vel_r - vel_l) * delt
+            Thetan += (r / L) * (UR - UL) * dt
             s.append((Xs,Ys))
             n.append((Xn,Yn))
         Thetan = math.degrees(Thetan)
     
         return [Xn, Yn, Thetan,length]
 
-    def goal_reached(self, a, final_node):
-        if((np.square(a[0]-final_node[0]))+ (np.square(a[1]-final_node[1])) <=np.square(0.05)) :
+    def convergence(self, a, goal_node):
+        if((np.square(a[0]-goal_node[0]))+ (np.square(a[1]-goal_node[1])) <=np.square(0.05)) :
                         return 0
         else:
             return 1
 
     def run(self):
-        # enter clearance 
-        self.total=float(input("Enter clearance for the robot")) 
         
-        l_rpm=int(input("Enter the L-rpm:"))
-        r_rpm=int(input("Enter the R-rpm:"))
-        actions=[[l_rpm,0],[0,l_rpm],[l_rpm,l_rpm],[0,r_rpm],[r_rpm,0],[r_rpm,r_rpm],[l_rpm,r_rpm],[r_rpm,l_rpm]]
+
+        self.tot=float(input("Enter the clearance")) 
         
-        startx = float(input("Enter start point x coordinate:"))
+        lrpm=int(input("Enter the l-rpm:"))
+        rrpm=int(input("Enter the r-rpm:"))
+        actions=[[lrpm,0],[0,lrpm],[lrpm,lrpm],[0,rrpm],[rrpm,0],[rrpm,rrpm],[lrpm,rrpm],[rrpm,lrpm]]
         
-        starty = float(input("Enter start point y coordinate:"))
+        x_start = float(input("Enter start point x coordinate:"))
+        
+        y_start = float(input("Enter start point y coordinate:"))
     
-        starting_ang = int(input("Enter start orientation in degrees:"))
-        obstacle_st = self.check_obs(startx,starty)
-        bound_st = self.check_bound(startx,starty)
+        theta_start = int(input("Enter start orientation in degrees:"))
+        start_obs = self.map_of_obstacles(x_start,y_start)
+        start_boundary = self.check_bound(x_start,y_start)
         
-        while(obstacle_st!=1 or bound_st!=1):
+        while(start_obs!=1 or start_boundary!=1):
             print("Incorrect start point! Enter a valid start point:")
-            startx = float(input("Enter start point x coordinate:"))
+            x_start = float(input("Enter start point x coordinate:"))
         
-            starty = float(input("Enter start point y coordinate:"))
+            y_start = float(input("Enter start point y coordinate:"))
             
-            starting_ang = int(input("Enter start orientation in degrees:"))
-            obstacle_st = self.check_obs(startx,starty)
-            bound_st = self.check_bound(startx,starty)
+            theta_start = int(input("Enter start orientation in degrees:"))
+            start_obs = self.map_of_obstacles(x_start,y_start)
+            start_boundary = self.check_bound(x_start,y_start)
         
-        start=self.norm_node([startx,starty,starting_ang])
+        start=self.norm_node([x_start,y_start,theta_start])
+        
         norm_current_node=start
-        goalx=float(input("Enter goal point x coordinate:"))
+        
+        x_goal=float(input("Enter goal point x coordinate:"))
     
-        goaly=float(input("Enter goal point y coordinate:"))
+        y_goal=float(input("Enter goal point y coordinate:"))
     
-        goal_ang=0
-        final_obs=self.check_obs(goalx,goaly)
-        final_bound=self.check_bound(goalx,goaly)
+        theta_goal=0
+        goal_obs=self.map_of_obstacles(x_goal,y_goal)
+        goal_boundary=self.check_bound(x_goal,y_goal)
         
         
-        while(final_obs!=1 or final_bound!=1):
+        while(goal_obs!=1 or goal_boundary!=1):
             print("Incorrect goal point! Enter a valid goal point:")
-            goalx=float(input("Enter another goal point x coordinate:"))
+            x_goal=float(input("Enter another goal point x coordinate:"))
         
-            goaly=float(input("Enter another goal point y coordinate:"))
+            y_goal=float(input("Enter another goal point y coordinate:"))
         
-            goal_ang=0
-            final_obs=self.check_obs(goalx,goaly)
-            final_bound=self.check_bound(goalx,goaly)
-        goal=self.norm_node([goalx,goaly,goal_ang])
-        final_node=[goal[0],goal[1],goal[2]]
-        
-        array_for_cost=np.array(np.ones((self.sizeofx,self.sizeofx,self.nare)) * np.inf)
+            theta_goal=0
+            goal_obs=self.map_of_obstacles(x_goal,y_goal)
+            goal_boundary=self.check_bound(x_goal,y_goal)
+        goal=self.norm_node([x_goal,y_goal,theta_goal])
+        goal_node=[goal[0],goal[1],goal[2]]
 
-        visited=np.array(np.zeros((self.sizeofx,self.sizeofx,self.nare)))
-
-        array_total_cost=np.array(np.ones((self.sizeofx,self.sizeofx,self.nare)) * np.inf)
+        array_for_cost=np.array(np.ones((self.sizex,self.sizex,self.na)) * np.inf)
+        
+        visited=np.array(np.zeros((self.sizex,self.sizex,self.na)))
+        
+        cost_total=np.array(np.ones((self.sizex,self.sizex,self.na)) * np.inf)
 
         parent={}
         Q=[]
         heappush(Q,(0,start))
-        array_for_cost[int(self.ndist*start[0])][int(self.ndist*start[1])][start[2]]=0
-        array_total_cost[int(self.ndist*start[0])][int(self.ndist*start[1])][start[2]]=0
-        nodes_explored=[]
+        array_for_cost[int(self.nd*start[0])][int(self.nd*start[1])][start[2]]=0
+        cost_total[int(self.nd*start[0])][int(self.nd*start[1])][start[2]]=0
+        explored=[]
+        
         start_time=time.time()    
-        flag_break=0
+        breakflag=0
         s=[]
         n=[]
         ps=[]
         pn=[]
 
-        while self.goal_reached(norm_current_node,final_node):
-            if flag_break==1:
+        while self.convergence(norm_current_node,goal_node):
+            if breakflag==1:
                 break
             norm_current_node=heappop(Q)[1]
-            if self.goal_reached(norm_current_node,final_node)==0:
+            if self.convergence(norm_current_node,goal_node)==0:
                 goalfound=[norm_current_node,action]
                 print("found")
                 print(norm_current_node)
                 break
             for action in actions:
-                curr_node=self.exec_robot_motion(norm_current_node[0], norm_current_node[1], norm_current_node[2], action[0], action[1],s,n)
+                curr_node=self.robot_move(norm_current_node[0], norm_current_node[1], norm_current_node[2], action[0], action[1],s,n)
                 if(curr_node==None):
                     continue
-                length=curr_node[3]
+                L=curr_node[3]
                 curr_node=curr_node[0:3]
                 norm_curr_node=self.norm_node(curr_node)
-                if self.goal_reached(norm_curr_node,final_node)==0:
+                if self.convergence(norm_curr_node,goal_node)==0:
                     print("found")
                     parent[self.string_from_list(norm_curr_node)]=[norm_current_node,action]
                     goalfound=[norm_curr_node,action]
                     print(norm_curr_node)
-                    flag_break=1
+                    breakflag=1
                     break
                 status=self.check_bound(norm_curr_node[0],norm_curr_node[1])
-                flag=self.check_obs(norm_curr_node[0],norm_curr_node[1])
+                flag=self.map_of_obstacles(norm_curr_node[0],norm_curr_node[1])
                 if (status and flag == 1):
-                    if visited[int(self.ndist*norm_curr_node[0]),int(self.ndist*norm_curr_node[1]),norm_curr_node[2]]==0:
-                        visited[int(self.ndist*norm_curr_node[0]),int(self.ndist*norm_curr_node[1]),norm_curr_node[2]]=1
-                        nodes_explored.append([norm_current_node,action,norm_curr_node])
+                    if visited[int(self.nd*norm_curr_node[0]),int(self.nd*norm_curr_node[1]),norm_curr_node[2]]==0:
+                        visited[int(self.nd*norm_curr_node[0]),int(self.nd*norm_curr_node[1]),norm_curr_node[2]]=1
+                        explored.append([norm_current_node,action,norm_curr_node])
                         parent[self.string_from_list(norm_curr_node)]=[norm_current_node,action]
-                        array_for_cost[int(self.ndist*norm_curr_node[0]),int(self.ndist*norm_curr_node[1]),norm_curr_node[2]]=length+array_for_cost[int(self.ndist*norm_current_node[0]),int(self.ndist*norm_current_node[1]),norm_current_node[2]]
-                        array_total_cost[int(self.ndist*norm_curr_node[0]),int(self.ndist*norm_curr_node[1]),norm_curr_node[2]]=array_for_cost[int(self.ndist*norm_curr_node[0]),int(self.ndist*norm_curr_node[1]),norm_curr_node[2]] + self.distance(norm_curr_node, final_node)
-                        heappush(Q,( array_total_cost[int(self.ndist*norm_curr_node[0]),int(self.ndist*norm_curr_node[1]),norm_curr_node[2]] ,norm_curr_node ))
+                        array_for_cost[int(self.nd*norm_curr_node[0]),int(self.nd*norm_curr_node[1]),norm_curr_node[2]]=L+array_for_cost[int(self.nd*norm_current_node[0]),int(self.nd*norm_current_node[1]),norm_current_node[2]]
+                        cost_total[int(self.nd*norm_curr_node[0]),int(self.nd*norm_curr_node[1]),norm_curr_node[2]]=array_for_cost[int(self.nd*norm_curr_node[0]),int(self.nd*norm_curr_node[1]),norm_curr_node[2]] + self.euclid_dist(norm_curr_node, goal_node)
+                        heappush(Q,( cost_total[int(self.nd*norm_curr_node[0]),int(self.nd*norm_curr_node[1]),norm_curr_node[2]] ,norm_curr_node ))
                     else:
-                        if array_total_cost[int(self.ndist*norm_curr_node[0]),int(self.ndist*norm_curr_node[1]),norm_curr_node[2]]>(array_total_cost[int(self.ndist*norm_current_node[0]),int(self.ndist*norm_current_node[1]),norm_current_node[2]]+sum(action)):
-                            array_total_cost[int(self.ndist*norm_curr_node[0]),int(self.ndist*norm_curr_node[1]),norm_curr_node[2]]=(array_total_cost[int(self.ndist*norm_current_node[0]),int(self.ndist*norm_current_node[1]),norm_current_node[2]]+sum(action))
-                            nodes_explored.append([norm_current_node,action,norm_curr_node])
+                        if cost_total[int(self.nd*norm_curr_node[0]),int(self.nd*norm_curr_node[1]),norm_curr_node[2]]>(cost_total[int(self.nd*norm_current_node[0]),int(self.nd*norm_current_node[1]),norm_current_node[2]]+sum(action)):
+                            cost_total[int(self.nd*norm_curr_node[0]),int(self.nd*norm_curr_node[1]),norm_curr_node[2]]=(cost_total[int(self.nd*norm_current_node[0]),int(self.nd*norm_current_node[1]),norm_current_node[2]]+sum(action))
+                            explored.append([norm_current_node,action,norm_curr_node])
                             parent[self.string_from_list(norm_curr_node)]=[norm_current_node,action]
 
-        optimal_path=[]
-        def generate_path(goal,start):
-            optimal_path.append(goal)
+
+        path=[]
+        def path_find(goal,start):
+            path.append(goal)
             GN=parent[self.string_from_list(goal[0])]
-            optimal_path.append(GN)
+            path.append(GN)
             while (GN[0]!=start):
                 GN=parent[self.string_from_list(GN[0])]
-                optimal_path.append(GN)
-            return optimal_path
+                path.append(GN)
+            return path
 
 
-        optimal_path=generate_path(goalfound,start)
-        optimal_path.reverse()
+        path=path_find(goalfound,start)
+        path.reverse()
         print("Time taken")
         print(time.time()-start_time)  
 
-        sx=startx
-        sy=starty
-        sz=starting_ang
+        sx=x_start
+        sy=y_start
+        sz=theta_start
         fig, ax = plt.subplots()
         ax.set(xlim=(0, 6), ylim=(0, 2))
 
@@ -293,14 +297,14 @@ class Astar(Node):
         currentAxis = plt.gca()
         currentAxis.add_patch(Rectangle((1.5, 1), 0.25, 1, fill=None, alpha=1))
         currentAxis.add_patch(Rectangle((2.5, 0), 0.25, 1, fill=None, alpha=1))
-        # currentAxis.add_patch(Rectangle((2.25, 7.25), 1.5, 1.5, fill=None, alpha=1))
+
         currentAxis.add_patch(Rectangle((0, 0), 6, 2, fill=None, alpha=1))
         
         ax.add_artist(c1)
         ax.set_aspect('equal')
         plt.grid()
-        for action in optimal_path:
-            x1= self.draw_motion(sx,sy,sz, action[1][0],action[1][1])
+        for action in path:
+            x1= self.curve_plot(sx,sy,sz, action[1][0],action[1][1])
             sx=x1[0]
             sy=x1[1]
             sz=x1[2]
@@ -308,15 +312,15 @@ class Astar(Node):
         plt.pause(1)
         plt.close()
         ros=[]
-        for i in range (len(optimal_path)):
-            ros.append(optimal_path[i][1])
+        for i in range (len(path)):
+            ros.append(path[i][1])
         print(ros)
         c =0
-        completion=0
+        progress=0
         for action in ros:
             print("action", action)
-            print("completion: ", int((completion/len(ros))*100), "%")
-            completion+=1
+            print("Progress: ", int((progress/len(ros))*100), "%")
+            progress+=1
             while rclpy.ok():
                 if c== 101:
                     self.msg.linear.x = 0.0
@@ -324,7 +328,7 @@ class Astar(Node):
                     self.vel_pub.publish(self.msg)
                     break
                 else:
-                    vel , th, thet_f = self.cal_vel(0.5,1,0,action[0],action[1])
+                    vel , th, F_theta = self.inputs_ros(0.5,1,0,action[0],action[1])
                     self.msg.linear.x = vel*10
                     self.msg.angular.z =  th*10
                     self.vel_pub.publish(self.msg)
