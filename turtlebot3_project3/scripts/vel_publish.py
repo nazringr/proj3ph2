@@ -27,11 +27,11 @@ class Astar(Node):
 
         self.vel_pub.publish(self.msg)
 
-        self.thresholdDistance = 0.01
-        self.nd = int(1 / self.thresholdDistance)
+        self.thresh_dist = 0.01
+        self.nd = int(1 / self.thresh_dist)
         self.sizex = 10 * self.nd
-        self.thresholdAngle = 10
-        self.na = int(360 / self.thresholdAngle)
+        self.thresh_angle = 10
+        self.na = int(360 / self.thresh_angle)
 
         self.tot = 0.18
 
@@ -52,24 +52,24 @@ class Astar(Node):
         UL = UL*2*math.pi/60
         UR = UR*2*math.pi/60
         thetan = 3.14 * Thetai / 180
-        theta_dot = (r / L) * (UR - UL) 
-        change_theta = theta_dot + thetan
-        x_dot = (r / 2) * (UL + UR) * math.cos(change_theta) 
-        y_dot = (r / 2) * (UL + UR) * math.sin(change_theta) 
-        vel_mag = math.sqrt(x_dot** 2 + y_dot** 2)
-        F_theta = (180*change_theta/ 3.14)   
-        return vel_mag, theta_dot, F_theta
+        diff_theta = (r / L) * (UR - UL) 
+        delta_theta = diff_theta + thetan
+        diff_x = (r / 2) * (UL + UR) * math.cos(delta_theta) 
+        diff_y = (r / 2) * (UL + UR) * math.sin(delta_theta) 
+        magnitude_vel = math.sqrt(diff_x** 2 + diff_y** 2)
+        F_theta = (180*delta_theta/ 3.14)   
+        return magnitude_vel, diff_theta, F_theta
 
     def norm_node(self, Node):
         x,y,t = Node[0],Node[1],Node[2]
-        x = round(x/self.thresholdDistance)* self.thresholdDistance
-        y = round(y/self.thresholdDistance)* self.thresholdDistance
-        t = round(t/self.thresholdAngle) * self.thresholdAngle
+        x = round(x/self.thresh_dist)* self.thresh_dist
+        y = round(y/self.thresh_dist)* self.thresh_dist
+        t = round(t/self.thresh_angle) * self.thresh_angle
         x=round(x,4)
         y=round(y,4)
         n=t//360
         t=t-(360*n)
-        t=(t/self.thresholdAngle)
+        t=(t/self.thresh_angle)
         return [x,y,int(t)]
 
     def euclid_dist(self, start_coordinate, goal_coordinate):
@@ -91,12 +91,12 @@ class Astar(Node):
 
 
     def map_of_obstacles(self, x, y):
-        circle1 = ((np.square(x-4.2))+ (np.square(y-1.2)) <=np.square(0.6+self.tot))
-        square1=(x>=1.5-self.tot) and (x<=1.75+self.tot) and (y>=1-self.tot) and (y <= 2)
-        square2=(x>=2.5-self.tot) and (x<=2.75+self.tot) and (y>=0) and (y <= 1+self.tot)
+        circle_obs = ((np.square(x-4.2))+ (np.square(y-1.2)) <=np.square(0.6+self.tot))
+        sqaure_obs1=(x>=1.5-self.tot) and (x<=1.75+self.tot) and (y>=1-self.tot) and (y <= 2)
+        sqaure_obs2=(x>=2.5-self.tot) and (x<=2.75+self.tot) and (y>=0) and (y <= 1+self.tot)
         
         boundary=(x<=self.tot) or (x>=6-self.tot) or (y <= self.tot) or (y>=2-self.tot)
-        if circle1 or square1 or square2 or boundary:
+        if circle_obs or sqaure_obs1 or sqaure_obs2 or boundary:
             obj_val =0
         else:
             obj_val = 1
@@ -131,7 +131,7 @@ class Astar(Node):
         Xn=xi
         Yn=yi
         length=0
-        Thetan = math.radians(Thetai*self.thresholdAngle)
+        Thetan = math.radians(Thetai*self.thresh_angle)
         while t<10:
             t = t + dt
             Xs = Xn
@@ -165,52 +165,52 @@ class Astar(Node):
         rrpm=int(input("Enter the r-rpm:"))
         actions=[[lrpm,0],[0,lrpm],[lrpm,lrpm],[0,rrpm],[rrpm,0],[rrpm,rrpm],[lrpm,rrpm],[rrpm,lrpm]]
         
-        x_start = float(input("Enter start point x coordinate:"))
+        start_x = float(input("Enter start point x coordinate:"))
         
-        y_start = float(input("Enter start point y coordinate:"))
+        start_y = float(input("Enter start point y coordinate:"))
     
-        theta_start = int(input("Enter start orientation in degrees:"))
-        start_obs = self.map_of_obstacles(x_start,y_start)
-        start_boundary = self.check_bound(x_start,y_start)
+        start_theta = int(input("Enter start orientation in degrees:"))
+        start_obs = self.map_of_obstacles(start_x,start_y)
+        start_boundary = self.check_bound(start_x,start_y)
         
         while(start_obs!=1 or start_boundary!=1):
             print("Incorrect start point! Enter a valid start point:")
-            x_start = float(input("Enter start point x coordinate:"))
+            start_x = float(input("Enter start point x coordinate:"))
         
-            y_start = float(input("Enter start point y coordinate:"))
+            start_y = float(input("Enter start point y coordinate:"))
             
-            theta_start = int(input("Enter start orientation in degrees:"))
-            start_obs = self.map_of_obstacles(x_start,y_start)
-            start_boundary = self.check_bound(x_start,y_start)
+            start_theta = int(input("Enter start orientation in degrees:"))
+            start_obs = self.map_of_obstacles(start_x,start_y)
+            start_boundary = self.check_bound(start_x,start_y)
         
-        start=self.norm_node([x_start,y_start,theta_start])
+        start=self.norm_node([start_x,start_y,start_theta])
         
         norm_current_node=start
         
-        x_goal=float(input("Enter goal point x coordinate:"))
+        goal_x=float(input("Enter goal point x coordinate:"))
     
-        y_goal=float(input("Enter goal point y coordinate:"))
+        goal_y=float(input("Enter goal point y coordinate:"))
     
-        theta_goal=0
-        goal_obs=self.map_of_obstacles(x_goal,y_goal)
-        goal_boundary=self.check_bound(x_goal,y_goal)
+        goal_theta=0
+        goal_obs=self.map_of_obstacles(goal_x,goal_y)
+        goal_boundary=self.check_bound(goal_x,goal_y)
         
         
         while(goal_obs!=1 or goal_boundary!=1):
             print("Incorrect goal point! Enter a valid goal point:")
-            x_goal=float(input("Enter another goal point x coordinate:"))
+            goal_x=float(input("Enter another goal point x coordinate:"))
         
-            y_goal=float(input("Enter another goal point y coordinate:"))
+            goal_y=float(input("Enter another goal point y coordinate:"))
         
-            theta_goal=0
-            goal_obs=self.map_of_obstacles(x_goal,y_goal)
-            goal_boundary=self.check_bound(x_goal,y_goal)
-        goal=self.norm_node([x_goal,y_goal,theta_goal])
+            goal_theta=0
+            goal_obs=self.map_of_obstacles(goal_x,goal_y)
+            goal_boundary=self.check_bound(goal_x,goal_y)
+        goal=self.norm_node([goal_x,goal_y,goal_theta])
         goal_node=[goal[0],goal[1],goal[2]]
 
         array_for_cost=np.array(np.ones((self.sizex,self.sizex,self.na)) * np.inf)
         
-        visited=np.array(np.zeros((self.sizex,self.sizex,self.na)))
+        explored_array=np.array(np.zeros((self.sizex,self.sizex,self.na)))
         
         cost_total=np.array(np.ones((self.sizex,self.sizex,self.na)) * np.inf)
 
@@ -222,14 +222,14 @@ class Astar(Node):
         explored=[]
         
         start_time=time.time()    
-        breakflag=0
+        flag_break=0
         s=[]
         n=[]
         ps=[]
         pn=[]
 
         while self.convergence(norm_current_node,goal_node):
-            if breakflag==1:
+            if flag_break==1:
                 break
             norm_current_node=heappop(Q)[1]
             if self.convergence(norm_current_node,goal_node)==0:
@@ -249,13 +249,13 @@ class Astar(Node):
                     parent[self.string_from_list(norm_curr_node)]=[norm_current_node,action]
                     goalfound=[norm_curr_node,action]
                     print(norm_curr_node)
-                    breakflag=1
+                    flag_break=1
                     break
                 status=self.check_bound(norm_curr_node[0],norm_curr_node[1])
                 flag=self.map_of_obstacles(norm_curr_node[0],norm_curr_node[1])
                 if (status and flag == 1):
-                    if visited[int(self.nd*norm_curr_node[0]),int(self.nd*norm_curr_node[1]),norm_curr_node[2]]==0:
-                        visited[int(self.nd*norm_curr_node[0]),int(self.nd*norm_curr_node[1]),norm_curr_node[2]]=1
+                    if explored_array[int(self.nd*norm_curr_node[0]),int(self.nd*norm_curr_node[1]),norm_curr_node[2]]==0:
+                        explored_array[int(self.nd*norm_curr_node[0]),int(self.nd*norm_curr_node[1]),norm_curr_node[2]]=1
                         explored.append([norm_current_node,action,norm_curr_node])
                         parent[self.string_from_list(norm_curr_node)]=[norm_current_node,action]
                         array_for_cost[int(self.nd*norm_curr_node[0]),int(self.nd*norm_curr_node[1]),norm_curr_node[2]]=L+array_for_cost[int(self.nd*norm_current_node[0]),int(self.nd*norm_current_node[1]),norm_current_node[2]]
@@ -284,9 +284,9 @@ class Astar(Node):
         print("Time taken")
         print(time.time()-start_time)  
 
-        sx=x_start
-        sy=y_start
-        sz=theta_start
+        sx=start_x
+        sy=start_y
+        sz=start_theta
         fig, ax = plt.subplots()
         ax.set(xlim=(0, 6), ylim=(0, 2))
 
