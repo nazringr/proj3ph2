@@ -77,7 +77,6 @@ class Astar(Node):
         gx,gy = goal_coordinate[0],goal_coordinate[1]
         return math.sqrt((gx-sx)**2 + (gy-sy)**2)#instead of using scipy.spatial importing distance
     
-    
 
     def string_from_list(self, s):  
             str1 = ""  
@@ -344,7 +343,7 @@ def main(args=None):
     astar.run()
 
     rclpy.spin(astar)
-    Astar.destroy_node()
+    astar.destroy_node()
 
     rclpy.shutdown()
 
