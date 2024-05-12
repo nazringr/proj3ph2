@@ -1,7 +1,7 @@
 import cv2
 import time
-from libcamera.camera import Camera
-from libcamera.stream import Stream
+from picamera.array import PiRGBArray
+from picamera import PiCamera
 from OpticalFlowShowcase import *
 
 usage_text = '''
@@ -27,7 +27,7 @@ def main():
             ord('3'): ('==> Dense_by_warp', 'dense_warp'),
             ord('4'): ('==> Lucas-Kanade', 'lucas_kanade')
         }.get(key, ('==> Dense_by_hsv', 'dense_hsv'))
-        print(message)
+        print message
         of = CreateOpticalFlow(type)
         of.set1stFrame(prevFrame)
         return of
@@ -35,54 +35,51 @@ def main():
     ## main starts here
     flipImage = True
     of = None
+    camera = PiCamera()
+    camera.resolution = (320, 240)
+    camera.framerate = 32
+    rawCapture = PiRGBArray(camera, size=(320, 240))
+    time.sleep(0.1) # wait for camera
+            
+    cv2.namedWindow("preview")
 
-    with Camera() as camera:
-        camera.configure()
-        camera.allocate_buffers(1)
+    ## main work
+    for cameraFrame in camera.capture_continuous(rawCapture, format="bgr", use_video_port=True):
+        # get array & clear the stream in preparation for the next frame
+        frame = cameraFrame.array
+        rawCapture.truncate(0)
 
-        stream = camera.stream()
+        if of is None:
+            of = change(ord('1'), frame)
+            continue
 
-        stream.register_buffers(camera.buffers())
-        stream.start()
+        ### flip
+        if flipImage:
+            frame = cv2.flip(frame, 1)
 
-        cv2.namedWindow("preview")
+        ### do it
+        img = of.apply(frame)
+        cv2.imshow("preview", img)
 
-        ## main work
-        for cameraFrame in stream:
-            # get array & clear the stream in preparation for the next frame
-            frame = cameraFrame.buffer.data
-            stream.queue_buffer(cameraFrame)
-
-            if of is None:
-                of = change('1', frame)
-                continue
-
-            ### flip
-            if flipImage:
-                frame = cv2.flip(frame, 1)
-
-            ### do it
-            img = of.apply(frame)
-            cv2.imshow("preview", img)
-
-            ### key operation
-            key = cv2.waitKey(1)
-            if key == 27:         # exit on ESC
-                print('Closing...')
-                break
-            elif key == ord('s'):   # save
-                cv2.imwrite('img_raw.png', frame)
-                cv2.imwrite('img_w_flow.png', img)
-                print("Saved raw frame as 'img_raw.png' and displayed as 'img_w_flow.png'")
-            elif key == ord('f'):   # save
-                flipImage = not flipImage
-                print("Flip image: " + {True:"ON", False:"OFF"}.get(flipImage))
-            elif ord('1') <= key and key <= ord('4'):
-                of = change(key, frame)
+        ### key operation
+        key = cv2.waitKey(1) & 0xFF
+        if key == 27:         # exit on ESC
+            print 'Closing...'
+            break
+        elif key == ord('s'):   # save
+            cv2.imwrite('img_raw.png', frame)
+            cv2.imwrite('img_w_flow.png', img)
+            print "Saved raw frame as 'img_raw.png' and displayed as 'img_w_flow.png'"
+        elif key == ord('f'):   # flip
+            flipImage = not flipImage
+            print "Flip image: " + {True: "ON", False: "OFF"}.get(flipImage)
+        elif ord('1') <= key <= ord('4'):
+            of = change(key, frame)
 
     ## finish
+    camera.close()
     cv2.destroyWindow("preview")
 
 if __name__ == '__main__':
-    print(usage_text)
+    print usage_text
     main()
